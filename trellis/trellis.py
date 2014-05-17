@@ -12,12 +12,12 @@ class QueryHandler(BaseHTTPRequestHandler):
             queries = parse_qs(parsed.query)
             print queries
             if "lat" in queries and "lon" in queries and "action" in queries:
-                if queries["action"] == ["query"] and "maxd" in queries and "rc" in queries:
+                if queries["action"] == ["query"] and "maxd" in queries and "vc" in queries:
                     print float(queries["lat"][0])
                     print float(queries["lon"][0])
                     print float(queries["maxd"][0])
 
-                    result = db.GetQuery(float(queries["lat"][0]), float(queries["lon"][0]), float(queries["maxd"][0]), int(queries["rc"][0]))
+                    result = db.GetQuery(float(queries["lat"][0]), float(queries["lon"][0]), float(queries["maxd"][0]), int(queries["vc"][0]))
                     if result[0]:
                         self.send_response(200)
                         self.send_header('Content-type','application/json')
@@ -40,6 +40,19 @@ class QueryHandler(BaseHTTPRequestHandler):
                         self.send_error(440, "What do I save dumass?")
                 else:
                     self.send_error(404, "No Idea what you are talking about")
+            elif "action" in queries and "link" in queries:
+                if queries["action"] == ["up"]:
+                    result = db.UpdateRating(queries["link"][0], +1)
+                elif queries["action"] == ["down"]:
+                    result = db.UpdateRating(queries["link"][0], -1)
+                else:
+                    self.send_error(404, "Rate the video properly!")
+                    return
+                if (result[0]):
+                    self.send_response(200)
+                    self.send_header('Content-type','application/json')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({ "success" : True}))
             else:
                 self.send_error(404, "Put some shit in your request dumass!")
         except IOError:

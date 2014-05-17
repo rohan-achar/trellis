@@ -54,6 +54,7 @@ def GetQuery(lat, lon, max_distance, number_of_results):
                 continue
             count += 1
             entry["link"] = dlink
+            entry["original"] = link
             entry["rating"] = float(rating)
             entry["thumbnail"] = thumb
             entry["lat"] = float(lat)
@@ -71,7 +72,6 @@ def GetQuery(lat, lon, max_distance, number_of_results):
         print e
         return False, 
 
-
 def AddNewLink(lat, lon, link, thumbnail):
     try:
         link = unquote(link)
@@ -86,3 +86,19 @@ def AddNewLink(lat, lon, link, thumbnail):
         connection.close()
         print(e)
         return False, 
+
+def UpdateRating(link, amount):
+    try:
+        link = unquote(link)
+        connection = db.connect(database = "trellis", user = creds["name"], password = creds["pass"], host = '127.0.0.1', port = creds["port"])
+        cursor = connection.cursor()
+        cursor.execute("update grapes set rating = rating + " + str(amount) + " where vlink = \'" + link + "\';")
+        connection.commit()
+        connection.close()
+        return True, "Success"
+    except StandardError, e:
+        connection.rollback()
+        connection.close()
+        print(e)
+        return False,
+                        
