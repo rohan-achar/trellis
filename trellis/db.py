@@ -2,6 +2,7 @@ import psycopg2 as db
 import json, re
 from urllib2 import Request, urlopen, HTTPError, URLError, unquote
 from httplib import HTTPException
+import time
 MAX_UPVOTES_ALLOWED = 1000000
 file = open("../creds.json", "r")
 creds = json.load(file)
@@ -9,7 +10,7 @@ file.close()
 matches = re.compile(".*(https://dl\.dropboxusercontent\.com/s/.*?\.mp4.*?)\".*")
 
 def extractLink(link):
-    urlreq = Request(url, None, {"User-Agent" : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1944.0 Safari/537.36"})
+    urlreq = Request(link, None, {"User-Agent" : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1944.0 Safari/537.36"})
     try:
         urldata = urlopen(urlreq)
         data = urldata.read()
@@ -26,7 +27,8 @@ def extractLink(link):
 
 def GetQuery(lat, lon, max_distance, number_of_results):
     try:
-        connection = db.connect(database = "trellis", user = creds["name"], password = creds["pass"], host = '127.0.0.1', port = 5433)
+        start = time.clock()
+        connection = db.connect(database = "trellis", user = creds["name"], password = creds["pass"], host = '127.0.0.1', port = creds["port"])
         cursor = connection.cursor()
         cursor.execute("select vlink, rating, availability, thumb, lat, lon, ST_Distance(location, Geography(ST_MakePoint(" + str(lon) + ", " + str(lat) + "))) from grapes where ST_Dwithin(location, Geography(ST_MakePoint(" + str(lon) + ", " + str(lat) + ")), " + str(max_distance) + ");")
         results = cursor.fetchall()
@@ -57,6 +59,7 @@ def GetQuery(lat, lon, max_distance, number_of_results):
             entry["lat"] = float(lat)
             entry["lon"] = float(lon)
             entry["distance"] = float(dist)
+            entry["time_ret"] = time.clock() - start
             output.append(entry)
             if count >= number_of_results:
                 break
@@ -72,7 +75,7 @@ def GetQuery(lat, lon, max_distance, number_of_results):
 def AddNewLink(lat, lon, link, thumbnail):
     try:
         link = unquote(link)
-        connection = db.connect(5433, creds["name"], creds["pass"], '127.0.0.1', 'trellis')
+        connection = db.connect(database = "trellis", user = creds["name"], password = creds["pass"], host = '127.0.0.1', port = creds["port"])
         cursor = connection.cursor()
         cursor.execute("insert into grapes values (\'" + link + "\', 0, true, \'" + thumbnail + "\', " + str(lat) + ", " + str(lon) + ", Geography(ST_MakePoint(" +  str(lon) + ", " + str(lat) +")));")
         connection.commit()
