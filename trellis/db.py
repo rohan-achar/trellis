@@ -39,7 +39,7 @@ def GetQuery(lat, lon, max_distance, number_of_results):
                 buckets[int(float(x[6])/(max_distance/3))].append(x)
             results = []
             for i in buckets:
-                print(i)
+                #print(i)
                 if i != []:
                     results.extend(sorted(i, key = lambda x: -float(x[2])))
         else:

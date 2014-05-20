@@ -1,7 +1,7 @@
 import json
 from urlparse import urlparse,parse_qs
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
-import os
+import os, socket
 
 import db
 
@@ -10,7 +10,7 @@ class QueryHandler(BaseHTTPRequestHandler):
         try:
             parsed = urlparse(self.path)
             queries = parse_qs(parsed.query)
-            print queries
+            #print queries
             if "lat" in queries and "lon" in queries and "action" in queries:
                 if queries["action"] == ["query"] and "maxd" in queries and "vc" in queries:
                     print float(queries["lat"][0])
