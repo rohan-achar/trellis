@@ -5,6 +5,8 @@ import os, socket
 
 import db
 
+from threading import Thread
+
 class QueryHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
@@ -62,6 +64,7 @@ class QueryHandler(BaseHTTPRequestHandler):
 
 def main(port):
     try:
+        Thread(target=db.UpdateDlinks).start()
         server = HTTPServer(('', port), QueryHandler)
         print 'Loading up Awesome server.'
         server.serve_forever()
