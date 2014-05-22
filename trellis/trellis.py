@@ -65,7 +65,9 @@ class QueryHandler(BaseHTTPRequestHandler):
 
 def main(port):
     try:
-        Thread(target=db.UpdateDlinks).start()
+        t = Thread(target=db.UpdateDlinks)
+        t.setDaemon(True)
+        t.start()
         server = HTTPServer(('', port), QueryHandler)
         print 'Loading up Awesome server.'
         server.serve_forever()
