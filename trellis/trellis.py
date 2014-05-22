@@ -32,7 +32,6 @@ class QueryHandler(BaseHTTPRequestHandler):
                 elif queries["action"] == ["save"]:
                     if "link" in queries and "thumbnail" in queries:
                         result = db.AddNewLink(float(queries["lat"][0]), float(queries["lon"][0]), queries["link"][0], queries["thumbnail"][0])
-                        result = result.next()
                         if (result[0]):
                             self.send_response(200)
                             self.send_header('Content-type','application/json')

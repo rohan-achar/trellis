@@ -4,6 +4,7 @@ from urllib2 import Request, urlopen, HTTPError, URLError, unquote
 from httplib import HTTPException
 import time
 import pygeocoder
+from threading import Thread
 
 geocoder = pygeocoder.Geocoder()
 geocoder.api_key = 'AIzaSyCs2_XqCA7gDOF5DX8zffaM1cSgGmD4mpQ'
@@ -84,27 +85,36 @@ def AddNewLink(lat, lon, link, thumbnail):
         cursor = connection.cursor()
         cursor.execute("insert into grapes values (\'" + link + "\', 0, true, \'" + thumbnail + "\', " + str(lat) + ", " + str(lon) + ", Geography(ST_MakePoint(" +  str(lon) + ", " + str(lat) +")), \'\', 0, \'\');")
         connection.commit()
-        
-        yield True, "Success"
-        try:
-            addr = geocoder.reverse_geocode(lat, lon, 0)
-            addr = addr.formatted_address
-            addparts = addr.split(", ")
-            if (len(addparts) > 3):
-                addparts = addparts[-4:-1]
-                addparts[-1] = addparts[-1].split()[0]
-                addr = ", ".join(addparts)
-
-            cursor.execute("update grapes set address = " + addr + " where vlink = \'" + link + "\';")
-            UpdateLink(link, 0)
-        except pygeocoder.GeocoderError:
-            print("Middle of nowhere")
         connection.close()
+        Thread(target = UpdateExtraFields, args = (link, lat, lon)).start()
+        return True, "Success"
     except StandardError, e:
         connection.rollback()
         connection.close()
         print(e)
-        yield False, 
+        return False, 
+
+def UpdateExtraFields(link, lat, lon):
+    try:
+        connection = db.connect(database = "trellis", user = creds["name"], password = creds["pass"], host = '127.0.0.1', port = creds["port"])
+        cursor = connection.cursor()
+        addr = geocoder.reverse_geocode(lat, lon, 0)
+        addr = addr.formatted_address
+        addparts = addr.split(", ")
+        if (len(addparts) > 3):
+            addparts = addparts[-4:-1]
+            addparts[-1] = addparts[-1].split()[0]
+            addr = ", ".join(addparts)
+
+        cursor.execute("update grapes set address = \'" + addr + "\' where vlink = \'" + link + "\';")
+        connection.commit()
+        connection.close()
+        UpdateLink(link, 0)
+    except pygeocoder.GeocoderError:
+        print("Middle of nowhere")
+    except db.DatabaseError:
+        connection.rollback()
+        connection.close()
 
 def UpdateRating(link, amount):
     try:
@@ -128,7 +138,7 @@ def UpdateLink(link, nacount):
             
         url = extractLink(link)
         if url != "":
-            cursor.execute("update grapes set dlink = " + url + " where vlink = \'" + link + "\';")
+            cursor.execute("update grapes set dlink = \'" + url + "\' where vlink = \'" + link + "\';")
         else:
             if nacount > 23:
                 cursor.execute("delete from grapes where vlink = \'" + link + "\';")
