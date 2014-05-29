@@ -12,7 +12,8 @@ MAX_UPVOTES_ALLOWED = 1000000
 file = open("../creds.json", "r")
 creds = json.load(file)
 file.close()
-matches = re.compile(".*(https://dl\.dropboxusercontent\.com/s/.*?\.mp4.*?)\".*")
+matches = re.compile(".*(<a.*?id=\"download_button_link\".*?>).*")
+urlmatches = re.compile(".*(https://www.dropbox.com/.*?)\".*")
 DLinkCache = {}
 
 def extractLink(link):
@@ -20,7 +21,7 @@ def extractLink(link):
     try:
         urldata = urlopen(urlreq)
         data = urldata.read()
-        return matches.findall(data)[0]
+        return urlmatches.findall(matches.findall(data)[0])[0]
     except HTTPError:
         return ""
     except URLError:
