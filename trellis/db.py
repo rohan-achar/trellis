@@ -140,6 +140,7 @@ def UpdateLink(link, nacount):
         url = extractLink(link)
         if url != "":
             cursor.execute("update grapes set dlink = \'" + url + "\' where vlink = \'" + link + "\';")
+            cursor.execute("update grapes set availability = true where vlink = \'" + link + "\';")
         else:
             if nacount > 23:
                 cursor.execute("delete from grapes where vlink = \'" + link + "\';")
