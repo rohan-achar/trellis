@@ -26,8 +26,8 @@ class QueryHandler(BaseHTTPRequestHandler):
                     length= int( self.headers['content-length'] )
                     data = json.loads(self.rfile.read(length))
                     self.rfile.close()
-                    if "link" in data and "thumbnail" in data:
-                        result = db.AddNewLink(float(queries["lat"][0]), float(queries["lon"][0]), data["link"], data["thumbnail"])
+                    if "link" in data and "thumbnail" in data and "video_id" in data:
+                        result = db.AddNewLink(float(queries["lat"][0]), float(queries["lon"][0]), data["link"], data["thumbnail"], queries["video_id"][0])
                         if (result[0]):
                             self.send_response(200)
                             self.send_header('Content-type','application/json')
@@ -68,8 +68,8 @@ class QueryHandler(BaseHTTPRequestHandler):
                     else:
                         self.send_error(404, "Dont look for videos in the middle of nowhere, upload them instead")
                 elif queries["action"] == ["save"]:
-                    if "link" in queries and "thumbnail" in queries:
-                        result = db.AddNewLink(float(queries["lat"][0]), float(queries["lon"][0]), queries["link"][0], queries["thumbnail"][0])
+                    if "link" in queries and "thumbnail" in queries and "video_id" in queries:
+                        result = db.AddNewLink(float(queries["lat"][0]), float(queries["lon"][0]), queries["link"][0], queries["thumbnail"][0], queries["video_id"][0])
                         if (result[0]):
                             self.send_response(200)
                             self.send_header('Content-type','application/json')
@@ -80,11 +80,13 @@ class QueryHandler(BaseHTTPRequestHandler):
                         self.send_error(440, "What do I save dumass?")
                 else:
                     self.send_error(404, "No Idea what you are talking about")
-            elif "action" in queries and "link" in queries:
+            elif "action" in queries and "video_id" in queries:
                 if queries["action"] == ["up"]:
                     result = db.UpdateRating(queries["link"][0], +1)
                 elif queries["action"] == ["down"]:
                     result = db.UpdateRating(queries["link"][0], -1)
+                elif queries["action"] == ["report"]:
+                    result = db.UpdateReport(queries["video_id"][0])
                 else:
                     self.send_error(404, "Rate the video properly!")
                     return

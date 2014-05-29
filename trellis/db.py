@@ -79,12 +79,13 @@ def GetQuery(lat, lon, max_distance, number_of_results):
         print e
         return False, 
 
-def AddNewLink(lat, lon, link, thumbnail):
+
+def AddNewLink(lat, lon, link, thumbnail, vid):
     try:
         link = unquote(link)
         connection = db.connect(database = "trellis", user = creds["name"], password = creds["pass"], host = '127.0.0.1', port = creds["port"])
         cursor = connection.cursor()
-        cursor.execute("insert into grapes values (\'" + link + "\', 0, true, \'" + thumbnail + "\', " + str(lat) + ", " + str(lon) + ", Geography(ST_MakePoint(" +  str(lon) + ", " + str(lat) +")), \'\', 0, \'\');")
+        cursor.execute("insert into grapes values (\'" + link + "\', 0, true, \'" + thumbnail + "\', " + str(lat) + ", " + str(lon) + ", Geography(ST_MakePoint(" +  str(lon) + ", " + str(lat) +")), \'\', 0, \'\'," + vid + ", \'" + time.strftime("%Y/%m/%d %X", time.gmtime()) + "\', \'" + time.strftime("%Y/%m/%d %X", time.gmtime()) + "\', 0);")
         connection.commit()
         connection.close()
         Thread(target = UpdateExtraFields, args = (link, lat, lon)).start()
@@ -131,6 +132,21 @@ def UpdateRating(link, amount):
         connection.close()
         print(e)
         return False,
+
+def UpdateReport(vid):
+    try:
+        link = unquote(link)
+        connection = db.connect(database = "trellis", user = creds["name"], password = creds["pass"], host = '127.0.0.1', port = creds["port"])
+        cursor = connection.cursor()
+        cursor.execute("update grapes set reportcount = reportcount + 1 where vid = \'" + vid + "\';")
+        connection.commit()
+        connection.close()
+        return True, "Success"
+    except StandardError, e:
+        connection.rollback()
+        connection.close()
+        print(e)
+        return False,
                         
 def UpdateLink(link, nacount):
     try:
@@ -141,12 +157,14 @@ def UpdateLink(link, nacount):
         if url != "":
             cursor.execute("update grapes set dlink = \'" + url + "\' where vlink = \'" + link + "\';")
             cursor.execute("update grapes set availability = true where vlink = \'" + link + "\';")
+            cursor.execute("update grapes set modified_at = \'" + time.strftime("%Y/%m/%d %X", time.gmtime()) + "\' where vlink = \'" + link + "\';")
         else:
             if nacount > 23:
                 cursor.execute("delete from grapes where vlink = \'" + link + "\';")
             else:
                 cursor.execute("update grapes set availability = false where vlink = \'" + link + "\';")
                 cursor.execute("update grapes set nacount = nacount + " + str(nacount + 1) + " where vlink = \'" + link + "\';")
+                cursor.execute("update grapes set modified_at = \'" + time.strftime("%Y/%m/%d %X", time.gmtime()) + "\' where vlink = \'" + link + "\';")
         connection.commit()
     except StandardError, e:
         connection.rollback()
