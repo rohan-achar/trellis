@@ -8,6 +8,34 @@ import db
 from threading import Thread
 
 class QueryHandler(BaseHTTPRequestHandler):
+
+    def do_POST(self):
+        try:
+            parsed = urlparse(self.path)
+            queries = parse_qs(parsed.query)
+            if "lat" in queries and "lon" in queries and "action" in queries:
+                if queries["action"] == ["save"]:
+                    length= int( self.headers['content-length'] )
+                    data = json.loads(self.rfile.read(length))
+                    self.rfile.close()
+                    if "link" in data and "thumbnail" in data:
+                        result = db.AddNewLink(float(queries["lat"][0]), float(queries["lon"][0]), data["link"], data["thumbnail"])
+                        if (result[0]):
+                            self.send_response(200)
+                            self.send_header('Content-type','application/json')
+                            self.end_headers()
+                            self.wfile.write(json.dumps({ "success" : True}))
+                    else:
+                        self.send_error(440, "What do I save dumass?")
+                else:
+                    self.send_error(404, "No Idea what you are talking about")
+            else:
+                self.send_error(404, "Really? No lat or lon or action?")
+        except IOError:
+            self.send_error(404,'What Shady Shit was tried?')
+        except ValueError:
+            self.send_error(404,'What Shady Shit was tried?')
+
     def do_GET(self):
         try:
             parsed = urlparse(self.path)
