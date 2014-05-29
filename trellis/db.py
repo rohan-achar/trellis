@@ -85,7 +85,7 @@ def AddNewLink(lat, lon, link, thumbnail, vid):
         link = unquote(link)
         connection = db.connect(database = "trellis", user = creds["name"], password = creds["pass"], host = '127.0.0.1', port = creds["port"])
         cursor = connection.cursor()
-        cursor.execute("insert into grapes values (\'" + link + "\', 0, true, \'" + thumbnail + "\', " + str(lat) + ", " + str(lon) + ", Geography(ST_MakePoint(" +  str(lon) + ", " + str(lat) +")), \'\', 0, \'\'," + vid + ", \'" + time.strftime("%Y/%m/%d %X", time.gmtime()) + "\', \'" + time.strftime("%Y/%m/%d %X", time.gmtime()) + "\', 0);")
+        cursor.execute("insert into grapes values (\'" + link + "\', 0, true, \'" + thumbnail + "\', " + str(lat) + ", " + str(lon) + ", Geography(ST_MakePoint(" +  str(lon) + ", " + str(lat) +")), \'\', 0, \'\', \'" + vid + "\', \'" + time.strftime("%Y/%m/%d %X", time.gmtime()) + "\', \'" + time.strftime("%Y/%m/%d %X", time.gmtime()) + "\', 0);")
         connection.commit()
         connection.close()
         Thread(target = UpdateExtraFields, args = (link, lat, lon)).start()
@@ -118,12 +118,11 @@ def UpdateExtraFields(link, lat, lon):
         connection.rollback()
         connection.close()
 
-def UpdateRating(link, amount):
+def UpdateRating(vid, amount):
     try:
-        link = unquote(link)
         connection = db.connect(database = "trellis", user = creds["name"], password = creds["pass"], host = '127.0.0.1', port = creds["port"])
         cursor = connection.cursor()
-        cursor.execute("update grapes set rating = rating + " + str(amount) + " where vlink = \'" + link + "\';")
+        cursor.execute("update grapes set rating = rating + " + str(amount) + " where vid = \'" + vid + "\';")
         connection.commit()
         connection.close()
         return True, "Success"
@@ -135,7 +134,6 @@ def UpdateRating(link, amount):
 
 def UpdateReport(vid):
     try:
-        link = unquote(link)
         connection = db.connect(database = "trellis", user = creds["name"], password = creds["pass"], host = '127.0.0.1', port = creds["port"])
         cursor = connection.cursor()
         cursor.execute("update grapes set reportcount = reportcount + 1 where vid = \'" + vid + "\';")
@@ -143,9 +141,9 @@ def UpdateReport(vid):
         connection.close()
         return True, "Success"
     except StandardError, e:
+        print(e)
         connection.rollback()
         connection.close()
-        print(e)
         return False,
                         
 def UpdateLink(link, nacount):

@@ -82,9 +82,9 @@ class QueryHandler(BaseHTTPRequestHandler):
                     self.send_error(404, "No Idea what you are talking about")
             elif "action" in queries and "video_id" in queries:
                 if queries["action"] == ["up"]:
-                    result = db.UpdateRating(queries["link"][0], +1)
+                    result = db.UpdateRating(queries["video_id"][0], +1)
                 elif queries["action"] == ["down"]:
-                    result = db.UpdateRating(queries["link"][0], -1)
+                    result = db.UpdateRating(queries["video_id"][0], -1)
                 elif queries["action"] == ["report"]:
                     result = db.UpdateReport(queries["video_id"][0])
                 else:
