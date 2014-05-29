@@ -1,11 +1,19 @@
-import json
+import json, time
 from urlparse import urlparse,parse_qs
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import os, socket
 
 import db
 
-from threading import Thread
+from threading import Thread, Lock
+
+filelock = Lock()
+
+def log(device, type, path):
+    with filelock:
+        file = open("log.csv", "a")
+        file.write(time.strftime("%c", time.gmtime()) + "," + device + "," + type + "," + path + "\n")
+        file.close()
 
 class QueryHandler(BaseHTTPRequestHandler):
 
@@ -31,6 +39,8 @@ class QueryHandler(BaseHTTPRequestHandler):
                     self.send_error(404, "No Idea what you are talking about")
             else:
                 self.send_error(404, "Really? No lat or lon or action?")
+            if "device_id" in queries:
+                log(queries["device_id"][0], "post", self.path)
         except IOError:
             self.send_error(404,'What Shady Shit was tried?')
         except ValueError:
@@ -85,6 +95,8 @@ class QueryHandler(BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps({ "success" : True}))
             else:
                 self.send_error(404, "Put some shit in your request dumass!")
+            if "device_id" in queries:
+                log(queries["device_id"][0], "GET", self.path)
         except IOError:
             self.send_error(404,'What Shady Shit was tried?')
         except ValueError:
