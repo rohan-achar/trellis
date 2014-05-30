@@ -27,7 +27,7 @@ class QueryHandler(BaseHTTPRequestHandler):
                     data = json.loads(self.rfile.read(length))
                     self.rfile.close()
                     if "link" in data and "thumbnail" in data and "video_id" in data:
-                        result = db.AddNewLink(float(queries["lat"][0]), float(queries["lon"][0]), data["link"], data["thumbnail"], queries["video_id"][0])
+                        result = db.AddNewLink(float(queries["lat"][0]), float(queries["lon"][0]), data["link"], data["thumbnail"], data["video_id"])
                         if (result[0]):
                             self.send_response(200)
                             self.send_header('Content-type','application/json')
