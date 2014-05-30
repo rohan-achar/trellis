@@ -36,7 +36,7 @@ def GetQuery(lat, lon, max_distance, number_of_results):
         start = time.clock()
         connection = db.connect(database = "trellis", user = creds["name"], password = creds["pass"], host = '127.0.0.1', port = creds["port"])
         cursor = connection.cursor()
-        cursor.execute("select vlink, rating, availability, thumb, lat, lon, ST_Distance(location, Geography(ST_MakePoint(" + str(lon) + ", " + str(lat) + "))), address, dlink from grapes where ST_Dwithin(location, Geography(ST_MakePoint(" + str(lon) + ", " + str(lat) + ")), " + str(max_distance) + ");")
+        cursor.execute("select vlink, rating, availability, thumb, lat, lon, ST_Distance(location, Geography(ST_MakePoint(" + str(lon) + ", " + str(lat) + "))), address, dlink, vid from grapes where ST_Dwithin(location, Geography(ST_MakePoint(" + str(lon) + ", " + str(lat) + ")), " + str(max_distance) + ");")
         results = cursor.fetchall()
         if max_distance > 300:
             results.sort(key = lambda x: x[6])
@@ -53,7 +53,7 @@ def GetQuery(lat, lon, max_distance, number_of_results):
         
         output = []
         count = 0
-        for link, rating, availability, thumb, lat, lon, dist, address, dlink in results:
+        for link, rating, availability, thumb, lat, lon, dist, address, dlink, vid in results:
             if availability:
                 entry = {}
                 if dlink == "":
@@ -67,6 +67,7 @@ def GetQuery(lat, lon, max_distance, number_of_results):
                 entry["lon"] = float(lon)
                 entry["distance"] = float(dist)
                 entry["address"] = address
+                entry["video_id"] = vid
                 entry["time_ret"] = time.clock() - start
                 output.append(entry)
             if count >= number_of_results:
