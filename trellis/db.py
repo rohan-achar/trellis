@@ -5,6 +5,8 @@ from httplib import HTTPException
 import time
 import pygeocoder
 from threading import Thread
+from math import radians, cos, sin, asin, sqrt
+from collections import OrderedDict
 
 geocoder = pygeocoder.Geocoder()
 geocoder.api_key = 'AIzaSyCs2_XqCA7gDOF5DX8zffaM1cSgGmD4mpQ'
@@ -36,8 +38,25 @@ def GetQuery(lat, lon, max_distance, number_of_results):
         start = time.clock()
         connection = db.connect(database = "trellis", user = creds["name"], password = creds["pass"], host = '127.0.0.1', port = creds["port"])
         cursor = connection.cursor()
-        cursor.execute("select vlink, rating, availability, thumb, lat, lon, ST_Distance(location, Geography(ST_MakePoint(" + str(lon) + ", " + str(lat) + "))), address, dlink, vid from grapes where ST_Dwithin(location, Geography(ST_MakePoint(" + str(lon) + ", " + str(lat) + ")), " + str(max_distance) + ");")
+        cursor.execute("select vlink, rating, availability, thumb, lat, lon, ST_Distance(location, Geography(ST_MakePoint(" + str(lon) + ", " + str(lat) + "))), address, dlink, vid, cid from grapes where ST_Dwithin(location, Geography(ST_MakePoint(" + str(lon) + ", " + str(lat) + ")), " + str(max_distance) + ") order by ST_Distance(location, Geography(ST_MakePoint(" + str(lon) + ", " + str(lat) + ")));")
         results = cursor.fetchall()
+        grouping = OrderedDict()
+        for result in results:
+            if result[10] not in grouping:
+                grouping[result[10]] = []
+            grouping[result[10]].append(result)
+
+        maxcluster = 0
+        for cid in grouping:
+            grouping[cid].sort(key = lambda x: -float(x[2]))
+            maxcluster = len(grouping[cid]) if len(grouping[cid]) > maxcluster else maxcluster
+        
+        newresults = []
+        for i in range(maxcluster):
+            for cid in grouping:
+                if i <= len(grouping[cid]) - 1:
+                    newresults.append(grouping[cid][i])
+        '''
         if max_distance > 300:
             results.sort(key = lambda x: x[6])
             buckets = [[],[],[]]
@@ -51,9 +70,11 @@ def GetQuery(lat, lon, max_distance, number_of_results):
         else:
             results.sort(key = lambda x: float(x[2]), reverse = True)
         
+        '''
+
         output = []
         count = 0
-        for link, rating, availability, thumb, lat, lon, dist, address, dlink, vid in results:
+        for link, rating, availability, thumb, lat, lon, dist, address, dlink, vid, cid in newresults:
             if availability:
                 entry = {}
                 if dlink == "":
@@ -86,7 +107,7 @@ def AddNewLink(lat, lon, link, thumbnail, vid):
         link = unquote(link)
         connection = db.connect(database = "trellis", user = creds["name"], password = creds["pass"], host = '127.0.0.1', port = creds["port"])
         cursor = connection.cursor()
-        cursor.execute("insert into grapes values (\'" + link + "\', 0, true, \'" + thumbnail + "\', " + str(lat) + ", " + str(lon) + ", Geography(ST_MakePoint(" +  str(lon) + ", " + str(lat) +")), \'\', 0, \'\', \'" + vid + "\', \'" + time.strftime("%Y/%m/%d %X", time.gmtime()) + "\', \'" + time.strftime("%Y/%m/%d %X", time.gmtime()) + "\', 0);")
+        cursor.execute("insert into grapes values (\'" + link + "\', 0, true, \'" + thumbnail + "\', " + str(lat) + ", " + str(lon) + ", Geography(ST_MakePoint(" +  str(lon) + ", " + str(lat) +")), \'\', 0, \'\', \'" + vid + "\', \'" + time.strftime("%Y/%m/%d %X", time.gmtime()) + "\', \'" + time.strftime("%Y/%m/%d %X", time.gmtime()) + "\', 0, -1);")
         connection.commit()
         connection.close()
         Thread(target = UpdateExtraFields, args = (link, lat, lon)).start()
@@ -110,6 +131,11 @@ def UpdateExtraFields(link, lat, lon):
             addr = ", ".join(addparts)
 
         cursor.execute("update grapes set address = \'" + addr + "\' where vlink = \'" + link + "\';")
+        connection.commit()
+        cid = getCluster(lat, lon)
+        if cid != None:
+            cursor.execute("update grapes set cid = " + str(cid) + " where vlink = \'" + link + "\';")
+        
         connection.commit()
         connection.close()
         UpdateLink(link, 0)
@@ -188,7 +214,87 @@ def UpdateDlinks():
 
     except StandardError, e:
         print(e)
+        connection.rollback()
+        connection.close()
         file = open("../error.txt", "a")
         file.write("e, " + time.strftime("%c") + ", Refresh Thread shutting down, " + str(e))
         file.close()
+
+def getCluster(lat, lon):
+    try:    
+        connection = db.connect(database = "trellis", user = creds["name"], password = creds["pass"], host = '127.0.0.1', port = creds["port"])
+        cursor = connection.cursor()
+        cursor.execute("select cid, clat, clon, gcount from grapebunch where ST_Dwithin(Geography(ST_MakePoint(clon, clat)), Geography(ST_MakePoint(" + str(lon) + ", " + str(lat) + ")), 50) order by ST_Distance(Geography(ST_MakePoint(clon, clat)), Geography(ST_MakePoint(" + str(lon) + ", " + str(lat) + ")));")
+        results = cursor.fetchall()
+        if len(results) > 0:
+            return updateCluster(results[0], len(results) > 1, lat, lon)
+        else:
+            return addCluster(lat, lon)
+    except db.DatabaseError:
+        connection.rollback()
+        connection.close()
+
+def updateCluster(result, multiple, lat, lon):
+    try:
+        cid, clat, clon, gcount = result
+        newclat = (clat*gcount + lat) / (gcount + 1)
+        newclon = (clon*gcount + lon) / (gcount + 1)
         
+        connection = db.connect(database = "trellis", user = creds["name"], password = creds["pass"], host = '127.0.0.1', port = creds["port"])
+        cursor = connection.cursor()
+        cursor.execute("update grapebunch set clat = " + str(newclat) + ", clon = " + str(newclon) + ", gcount = gcount + 1 where cid = " + str(cid) + ";")
+        connection.commit()
+        connection.close()
+        return cid
+    except db.DatabaseError, e:
+        print (e)
+        connection.rollback()           
+        connection.close()
+
+def addCluster(lat, lon):
+    try:
+        
+        connection = db.connect(database = "trellis", user = creds["name"], password = creds["pass"], host = '127.0.0.1', port = creds["port"])
+        cursor = connection.cursor()
+        cursor.execute("select count(*) from grapebunch;")
+        cid = cursor.fetchall()
+        cid = cid[0][0]
+        cursor.execute("insert into grapebunch values (" + str(cid) + ", " + str(lat) + ", " + str(lon) + ", 1);")
+        connection.commit()
+        connection.close()
+        return cid
+    except db.DatabaseError, e:
+        print (e)
+        connection.rollback()           
+        connection.close()
+
+
+#def haversine(lon1, lat1, lon2, lat2):
+#    """
+#    Calculate the great circle distance between two points 
+#    on the earth (specified in decimal degrees)
+#    """
+#    # convert decimal degrees to radians 
+#    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+
+#    # haversine formula 
+#    dlon = lon2 - lon1 
+#    dlat = lat2 - lat1 
+#    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+#    c = 2 * asin(sqrt(a)) 
+
+#    # 6367 km is the radius of the Earth
+#    km = 6367 * c
+#    return km 
+
+#def distanceTo(lat, lon):
+#    def distance(t):
+#        return haversine(lat, lon, t[0], t[1])
+#    return distance
+
+#def cluster(plist, slat, slon, area):
+#    start = plist.pop(0)
+#    tmp = plist[:]
+#    tmp.sort(key = distanceTo(start[0], start[1]))
+
+
